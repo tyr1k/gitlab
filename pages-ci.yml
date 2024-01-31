@@ -1,0 +1,31 @@
+stages:
+  - create_page
+  - create_pages
+
+create_page:
+  stage: create_page
+  image: "registry.gitlab/$CI_PROJECT_NAMESPACE/build/$CI_PROJECT_NAME:$BUILDER_VERSION"
+  script:
+    - mkdir -p public  && cd public && mkdir cppcheck hdoc coverage
+    - cd $CI_PROJECT_DIR
+    - cp -rf $CI_PROJECT_DIR/doc/site/* public/hdoc/
+    - cp -rf $CI_PROJECT_DIR/cpp_checker_$CI_PROJECT_NAME/* public/cppcheck/
+    - tree public
+    - cp -rf $CI_PROJECT_DIR/doc/coverage/* public/coverage
+  needs:
+    - cpp_check
+    - prepare_generate_hdoc
+    - build_test
+pages:
+  stage: create_pages
+  script:
+    - mkdir -p public  && cd public && mkdir cppcheck hdoc coverage
+    - cd /builds/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/
+    - cp -rf $CI_PROJECT_PATH/doc/site/* public/hdoc/
+    - cp -rf $CI_PROJECT_PATH/cpp_checker_$CI_PROJECT_NAME/* public/cppcheck/
+    - cp -rf $CI_PROJECT_PATH/doc/coverage/* public/coverage
+  artifacts:
+    paths:
+      - public/hdoc
+      - public/cppcheck
+      - public/coverage
