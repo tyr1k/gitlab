@@ -1,0 +1,29 @@
+stages:
+  - build_test
+  - cov_page
+variables:
+  SERVICE_ROOT_DIR: "${CI_PROJECT_DIR}"
+build_test:
+  stage: build_test
+  image: "registry.gitlab/$CI_PROJECT_NAMESPACE/build/$CI_PROJECT_NAME:$BUILDER_VERSION"
+  script:
+    - apt update && apt install -y gcovr
+    - mkdir tests/build_test && cd tests/build_test
+    - |- 
+      if [ -f $CI_PROJECT_DIR/tests/CMakeLists.txt ]; then
+        cmake .. 1>/dev/null;
+        make -j 6 1>/dev/null;
+        shopt -s extglob;
+        ./test_$CI_PROJECT_NAME --gtest_output=xml;
+      else
+        cmake ${CI_PROJECT_DIR} -DBUILD_TESTING=ON 1>/dev/null;
+        make -j 6 1>/dev/null;
+        shopt -s extglob;
+        ./test_$CI_PROJECT_NAME --gtest_output=xml;
+      fi
+    - realpath test_detail.xml
+    - lcov --capture --exclude '*cudafe1.*'   --directory . --output-file coverage.info
+    - lcov --remove coverage.info -o coverage.info "/usr*" "*src_test/*" "*include_test/*" "*external/*" | tail -n3 | grep -Eo '[[:digit:]]{1,3}\.[[:digit:]]{1,3}\%'  |  awk 'BEGIN{ RS = "" ; FS = "\n" }{print $1}' > cov_result.tmp
+    - mv -f cov_result.tmp /builds/$GROUP_NAME/$CI_PROJECT_NAME/cov_result
+    - genhtml coverage.info --output-directory=$CI_PROJECT_DIR/doc/coverage
+  coverage: '/\s*lines\.*:\s*([\d\.]+%)/'
