@@ -1,0 +1,14 @@
+stages:
+    - cpp_check
+    - cpp_page
+cpp_check:
+    stage: cpp_check
+    image: "registry.gitlab/$CI_PROJECT_NAMESPACE/build/$CI_PROJECT_NAME:$BUILDER_VERSION"
+    script: 
+    - apt update && apt install -y cppcheck
+    - cd CI_PROJECT_PATH
+    - cppcheck --xml --output-file=report.xml --enable=all * 
+    - cppcheck-htmlreport --file=report.xml --report-dir=cpp_checker_$CI_PROJECT_NAME --title=$CI_PROJECT_NAME
+    artifacts:
+      paths:
+        - /CI_PROJECT_PATH/cpp_checker_$CI_PROJECT_NAME
