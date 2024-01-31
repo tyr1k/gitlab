@@ -1,0 +1,30 @@
+stages:
+  - prepare_generate_hdoc
+  - generate_page
+prepare_generate_hdoc:
+  stage: prepare_generate_hdoc
+  image: "registry.gitlab/$CI_PROJECT_NAMESPACE/build/$CI_PROJECT_NAME:$BUILDER_VERSION"
+  script:
+  - apt update && apt install -y gnupg gnupg2
+  - echo "deb http://apt.llvm.org/bullseye/ llvm-toolchain-bullseye-14 main" >> /etc/apt/sources.list
+  - apt-key adv --fetch-keys https://apt.llvm.org/llvm-snapshot.gpg.key
+  - apt update && apt install -y clang-14 libclang-cpp14-dev libclang-14-dev llvm-14 
+  - ln -sf /usr/bin/clang-14 /usr/bin/clang
+  - ln -sf /usr/bin/clang++-14 /usr/bin/clang++
+  - ln -sf /usr/bin/llvm-config-14 /usr/local/bin/llvm-config
+  - apt install -y --no-install-suggests --no-install-recommends git cmake make meson xxd pkg-config libssl-dev ninja-build
+  - git clone https://github.com/hdoc/hdoc.git -b 1.4.1 --depth 1 --recursive
+  - sed -i 's/c++20/c++2a/' hdoc/meson.build
+  - mkdir hdoc/build && cd hdoc
+  - meson build && ninja -C build
+  - cd build && chmod +x hdoc && cp hdoc /usr/bin/hdoc
+  - cd $CI_PROJECT_DIR
+  - cmake -S . -B build -DCMAKE_BUILD_TYPE=release -DCMAKE_EXPORT_COMPILE_COMMANDS=on
+  - echo -e "[project]\nname = \"$CI_PROJECT_NAME\"\nversion = \"$CI_COMMIT_TAG\"\n\ngit_repo_url = \"$CI_PROJECT_URL/\"\ngit_default_branch = \"$CI_COMMIT_REF_NAME\"\n\n[paths]\ncompile_commands = \"build/compile_commands.json\"\noutput_dir = \"doc/site\"\n\n[pages]\npaths = [\n    \"doc/pages/Integration.md\",\n    \"doc/pages/Examples.md\"\n]" >> .hdoc.toml
+  - hdoc --verbose
+  - cat .hdoc.toml
+  needs:
+    - build_project
+  artifacts:
+    paths:
+    - $CI_PROJECT_DIR/doc/site
